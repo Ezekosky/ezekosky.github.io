@@ -1,0 +1,44 @@
+name: Publish website
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Unpack the newest site zip
+        run: |
+          ZIP=$(git log -1 --diff-filter=AM --name-only --pretty=format: -- '*.zip' | head -n 1)
+          if [ -z "$ZIP" ]; then ZIP=$(ls -t *.zip | head -n 1); fi
+          echo "Publishing $ZIP"
+          mkdir -p _site
+          unzip -q -o "$ZIP" -d _site
+          test -f _site/index.html
+          test -f _site/app-ads.txt
+          ls -R _site | head -n 40
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
